@@ -10,7 +10,7 @@ services:
     runtime: ruby
     plan: free
     buildCommand: bundle install
-    startCommand: bundle exec puma -p $PORT -b 0.0.0.0 config.ru
+    startCommand: bundle exec puma -b tcp://0.0.0.0:$PORT config.ru
     envVars:
       - key: DATABASE_URL
         fromDatabase:
