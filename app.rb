@@ -2,6 +2,7 @@ require "sinatra"
 require "sequel"
 require "bcrypt"
 require "uri"
+require "digest"
 
 set :bind, "0.0.0.0"
 set :port, ENV.fetch("PORT", 4567)
@@ -61,7 +62,8 @@ helpers do
 end
 
 enable :sessions
-set :session_secret, ENV.fetch("SESSION_SECRET", "local-development-secret-change-this-please-1234567890abcdef0123456789")
+session_secret = ENV.fetch("SESSION_SECRET", "local-development-secret-change-this-please-1234567890abcdef0123456789")
+set :session_secret, Digest::SHA256.hexdigest(session_secret)
 set :protection, except: :path_traversal
 
 before do
