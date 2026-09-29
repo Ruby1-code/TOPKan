@@ -1,0 +1,37 @@
+<header class="topbar">
+  <a class="brand" href="/" aria-label="TOPKan home"><span class="brand-mark">T</span><span>TOPKan</span></a>
+  <span class="topbar-note">Private people directory</span>
+</header>
+
+<main class="login-shell">
+  <div class="login-decoration decoration-one"></div><div class="login-decoration decoration-two"></div>
+  <section class="login-card">
+    <div class="login-emblem"><span class="brand-mark">T</span></div>
+    <div class="eyebrow login-eyebrow"><span class="eyebrow-dot"></span> YOUR CONTACTS, IN ONE PLACE</div>
+    <h1><%= @setup_mode ? "Set up your directory" : "Welcome back" %></h1>
+    <p class="login-subtitle"><%= @setup_mode ? "Create the first account to get started." : "Sign in to access your TOPKan directory." %></p>
+
+    <% if @flash %><div class="flash <%= h(@flash[:type]) %>" role="status"><span class="flash-icon"><%= @flash[:type] == "error" ? "!" : "✓" %></span><%= h(@flash[:message]) %></div><% end %>
+
+    <% if @setup_mode %>
+      <form action="/setup" method="post" class="login-form">
+        <div class="name-fields">
+          <label>First name<input name="first_name" autocomplete="given-name" placeholder="Jamie" required maxlength="100"></label>
+          <label>Last name<input name="last_name" autocomplete="family-name" placeholder="Chen" required maxlength="100"></label>
+        </div>
+        <label>Email address<input type="email" name="email" autocomplete="email" placeholder="you@example.com" required maxlength="254"></label>
+        <label>Password<input type="password" name="password" autocomplete="new-password" placeholder="At least 8 characters" minlength="8" required></label>
+        <button class="button button-primary login-submit" type="submit">Create account <span>→</span></button>
+      </form>
+      <div class="login-secure"><span class="lock-icon">▣</span> Your password is stored as a secure hash.</div>
+    <% else %>
+      <form action="/login" method="post" class="login-form">
+        <label>Email address<input type="email" name="email" autocomplete="username" placeholder="you@example.com" required maxlength="254" autofocus></label>
+        <label>Password<input type="password" name="password" autocomplete="current-password" placeholder="Enter your password" required></label>
+        <button class="button button-primary login-submit" type="submit">Sign in <span>→</span></button>
+      </form>
+      <div class="login-secure"><span class="lock-icon">▣</span> Your directory is protected by your account.</div>
+    <% end %>
+  </section>
+  <footer class="login-footer"><span>TOPKan <span class="footer-divider">/</span> People directory</span><span>Made for keeping things connected <span class="footer-heart">♥</span></span></footer>
+</main>

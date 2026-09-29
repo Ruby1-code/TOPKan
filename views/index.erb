@@ -1,0 +1,71 @@
+<header class="topbar">
+  <a class="brand" href="/directory" aria-label="TOPKan home"><span class="brand-mark">T</span><span>TOPKan</span></a>
+  <div class="user-menu"><span class="signed-in-as"><span class="signed-in-dot"></span><%= h(@current_person[:first_name]) %></span><form action="/logout" method="post"><button class="logout-button" type="submit">Sign out <span>↗</span></button></form></div>
+</header>
+
+<main class="shell">
+  <section class="intro">
+    <div class="eyebrow"><span class="eyebrow-dot"></span> YOUR CONTACTS, IN ONE PLACE</div>
+    <div class="intro-row">
+      <div>
+        <h1>People directory</h1>
+        <p class="subtitle">A simple, secure space to manage your people.</p>
+      </div>
+      <div class="total-card"><span class="total-number"><%= @people.length %></span><span class="total-label"><%= @people.length == 1 ? "record" : "records" %></span></div>
+    </div>
+  </section>
+
+  <% if @flash %><div class="flash <%= h(@flash[:type]) %>" role="status"><span class="flash-icon"><%= @flash[:type] == "error" ? "!" : "✓" %></span><%= h(@flash[:message]) %></div><% end %>
+
+  <div class="workspace">
+    <aside class="panel add-panel">
+      <div class="panel-heading"><div class="heading-icon">＋</div><div><h2>Add a person</h2><p>Create a new directory record</p></div></div>
+      <form action="/people" method="post" class="person-form">
+        <label>First name<input name="first_name" autocomplete="given-name" placeholder="e.g. Jamie" required maxlength="100"></label>
+        <label>Last name<input name="last_name" autocomplete="family-name" placeholder="e.g. Chen" required maxlength="100"></label>
+        <label>Email address<input type="email" name="email" autocomplete="email" placeholder="jamie@example.com" required maxlength="254"></label>
+        <label>Password<input type="password" name="password" autocomplete="new-password" placeholder="At least 8 characters" minlength="8" required></label>
+        <button class="button button-primary" type="submit"><span>＋</span> Add person</button>
+      </form>
+      <div class="secure-note"><span class="lock-icon">▣</span><span>Passwords are encrypted before they’re stored.</span></div>
+    </aside>
+
+    <section class="panel directory-panel">
+      <div class="directory-heading">
+        <div class="directory-title"><h2>Directory</h2><span class="count-pill"><%= @people.length %></span></div>
+        <form action="/directory" method="get" class="search-form">
+          <span class="search-icon" aria-hidden="true">⌕</span>
+          <input type="search" name="q" value="<%= h(@query) %>" placeholder="Search people…" aria-label="Search by name or email">
+          <% if @query.empty? %><kbd>↵</kbd><% else %><a class="clear-search" href="/directory" aria-label="Clear search">×</a><% end %>
+        </form>
+      </div>
+      <% if @people.empty? %>
+        <div class="empty-state"><div class="empty-art"><span>◎</span><i></i><b></b></div><h3><%= @query.empty? ? "Your directory is ready" : "No matches found" %></h3><p><%= @query.empty? ? "Add your first person using the form and they’ll show up here." : "Try another name or email address." %></p><% unless @query.empty? %><a href="/directory" class="text-link">Clear search</a><% end %></div>
+      <% else %>
+        <div class="table-scroll"><table><thead><tr><th>PERSON</th><th>EMAIL ADDRESS</th><th class="action-heading">ACTIONS</th></tr></thead><tbody>
+          <% @people.each do |person| %>
+            <tr>
+              <td><div class="person-cell"><span class="avatar"><%= h(person[:first_name][0].to_s.upcase + person[:last_name][0].to_s.upcase) %></span><div><span class="person-name"><%= h(person[:first_name]) %> <%= h(person[:last_name]) %></span><span class="person-id">ID · <%= person[:id] %></span></div></div></td>
+              <td><a class="email-link" href="mailto:<%= h(person[:email]) %>"><%= h(person[:email]) %></a></td>
+              <td><div class="actions"><button class="icon-button edit-button" type="button" aria-label="Edit <%= h(person[:first_name]) %> <%= h(person[:last_name]) %>" title="Edit" data-id="<%= person[:id] %>" data-first="<%= h(person[:first_name]) %>" data-last="<%= h(person[:last_name]) %>" data-email="<%= h(person[:email]) %>">✎</button><form action="/people/<%= person[:id] %>/delete" method="post" onsubmit="return confirm('Delete this record? This cannot be undone.')"><button class="icon-button delete-button" type="submit" aria-label="Delete <%= h(person[:first_name]) %> <%= h(person[:last_name]) %>" title="Delete">⌫</button></form></div></td>
+            </tr>
+          <% end %>
+        </tbody></table></div>
+        <div class="table-footer"><span>Showing <strong><%= @people.length %></strong> <%= @people.length == 1 ? "person" : "people" %><%= @query.empty? ? "" : " matching ‘#{h(@query)}’" %></span><span class="footer-dot"></span><span>TOPKan directory</span></div>
+      <% end %>
+    </section>
+  </div>
+  <footer><span>TOPKan <span class="footer-divider">/</span> People directory</span><span>Made for keeping things connected <span class="footer-heart">♥</span></span></footer>
+</main>
+
+<dialog id="edit-dialog" class="edit-dialog">
+  <form id="edit-form" method="post">
+    <div class="dialog-heading"><div><div class="eyebrow">UPDATE DIRECTORY</div><h2>Edit person</h2></div><button class="close-dialog" type="button" aria-label="Close">×</button></div>
+    <label>First name<input name="first_name" required maxlength="100"></label>
+    <label>Last name<input name="last_name" required maxlength="100"></label>
+    <label>Email address<input type="email" name="email" required maxlength="254"></label>
+    <label>Password <span class="optional">Optional</span><input type="password" name="password" autocomplete="new-password" placeholder="Leave blank to keep current password"></label>
+    <div class="dialog-actions"><button class="button button-secondary" type="button" id="cancel-edit">Cancel</button><button class="button button-primary" type="submit">Save changes</button></div>
+  </form>
+</dialog>
+<script src="/app.js" defer></script>
