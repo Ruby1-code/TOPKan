@@ -18,13 +18,8 @@ else
   DB = Sequel.connect("sqlite://db/topkan.sqlite3")
 end
 
-DB.create_table?(:people) do
-  primary_key :id
-  String :first_name, null: false
-  String :last_name, null: false
-  String :email, null: false, unique: true
-  String :password, null: false
-end
+Sequel.extension :migration
+Sequel::Migrator.run(DB, File.join(__dir__, "db", "migrations"))
 
 PEOPLE = DB[:people]
 

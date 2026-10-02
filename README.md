@@ -26,3 +26,7 @@ Push this project to a Git repository, connect that repository to Render, and cr
 | `last_name` | Last name |
 | `email` | Unique email address |
 | `password` | Bcrypt password hash |
+
+## Database schema changes
+
+Schema changes are tracked with Sequel migrations in `db/migrations/`. The app applies unapplied migrations at startup on both local SQLite and Render PostgreSQL. Do not edit a migration that has already been deployed; add the next numbered file instead. For example, `002_add_phone_number.rb` can use `alter_table(:people) { add_column :phone_number, String }`. New fields should usually allow `NULL` or have a safe default so existing records remain valid. Back up production data before migrations that remove or rewrite columns.
