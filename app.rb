@@ -77,7 +77,7 @@ set :protection, except: :path_traversal
 
 before do
   content_type :html, charset: "utf-8"
-  if request.path == "/directory" || request.path.start_with?("/people/") || request.path == "/people"
+  if request.path == "/directory" || request.path.start_with?("/people/") || request.path == "/people" || request.path.start_with?("/account/")
     unless current_person
       session.clear
       redirect "/"
@@ -132,6 +132,37 @@ end
 post "/logout" do
   session.clear
   redirect "/"
+end
+
+get "/account/password" do
+  @current_person = current_person
+  @flash = session.delete(:flash)
+  erb :change_password
+end
+
+post "/account/password" do
+  current_password = params[:current_password].to_s
+  new_password = params[:new_password].to_s
+  confirmation = params[:password_confirmation].to_s
+
+  unless BCrypt::Password.new(current_person[:password]) == current_password
+    session[:flash] = { message: "Current password is incorrect.", type: "error" }
+    return redirect "/account/password"
+  end
+
+  if new_password.length < 8
+    session[:flash] = { message: "New password must be at least 8 characters.", type: "error" }
+    return redirect "/account/password"
+  end
+
+  unless new_password == confirmation
+    session[:flash] = { message: "New password and confirmation do not match.", type: "error" }
+    return redirect "/account/password"
+  end
+
+  PEOPLE.where(id: current_person[:id]).update(password: BCrypt::Password.create(new_password))
+  session[:flash] = { message: "Your password has been changed.", type: "success" }
+  redirect "/directory"
 end
 
 get "/directory" do

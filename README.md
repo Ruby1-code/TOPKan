@@ -1,6 +1,6 @@
 # TOPKan
 
-A small Sinatra people directory with sign-in, admin-controlled add/edit/delete, and search. Passwords are stored as bcrypt hashes in the `password` column; the plaintext password is never saved. On a new, empty database, the home page offers a one-time first account setup, and that first account is an administrator.
+A small Sinatra people directory with sign-in, admin-controlled add/edit/delete, search, and self-service password changes. Passwords are stored as bcrypt hashes in the `password` column; the plaintext password is never saved. On a new, empty database, the home page offers a one-time first account setup, and that first account is an administrator.
 
 ## Run locally
 
