@@ -29,11 +29,17 @@ helpers do
   end
 
   def person_params
+    number_text = params[:sNumber].to_s.strip
     {
       first_name: params[:first_name].to_s.strip,
       last_name: params[:last_name].to_s.strip,
       email: params[:email].to_s.strip.downcase,
-      password: params[:password].to_s
+      password: params[:password].to_s,
+      telephone1: params[:telephone1].to_s.strip.then { |value| value.empty? ? nil : value },
+      sNumber: number_text.empty? ? nil : (Integer(number_text, 10) rescue :invalid),
+      sName: params[:sName].to_s.strip.then { |value| value.empty? ? nil : value },
+      comments: params[:comments].to_s.strip.then { |value| value.empty? ? nil : value },
+      admin: params[:admin] == "1"
     }
   end
 
@@ -42,7 +48,15 @@ helpers do
     return "Last name is required." if person[:last_name].empty?
     return "Enter a valid email address." unless person[:email].match?(/\A[^\s@]+@[^\s@]+\.[^\s@]+\z/)
     return "Password must be at least 8 characters." if require_password && person[:password].length < 8
+    return "Telephone must be 20 characters or fewer." if person[:telephone1].to_s.length > 20
+    return "sNumber must be a whole number." if person[:sNumber] == :invalid
+    return "sName must be 50 characters or fewer." if person[:sName].to_s.length > 50
+    return "Comments must be 500 characters or fewer." if person[:comments].to_s.length > 500
     nil
+  end
+
+  def current_person
+    @current_person ||= PEOPLE.where(id: session[:person_id]).first if session[:person_id]
   end
 
   def go_home(message = nil, type: "success")
@@ -64,10 +78,11 @@ set :protection, except: :path_traversal
 before do
   content_type :html, charset: "utf-8"
   if request.path == "/directory" || request.path.start_with?("/people/") || request.path == "/people"
-    unless session[:person_id] && PEOPLE.where(id: session[:person_id]).first
+    unless current_person
       session.clear
       redirect "/"
     end
+    halt 403, "Admin access required." if request.post? && request.path.start_with?("/people") && !current_person[:admin]
   end
 end
 
@@ -101,7 +116,11 @@ post "/setup" do
   end
 
   begin
-    id = PEOPLE.insert(first_name: person[:first_name], last_name: person[:last_name], email: person[:email], password: BCrypt::Password.create(person[:password]))
+    id = PEOPLE.insert(
+      first_name: person[:first_name], last_name: person[:last_name], email: person[:email],
+      password: BCrypt::Password.create(person[:password]), telephone1: person[:telephone1],
+      sNumber: person[:sNumber], sName: person[:sName], comments: person[:comments], admin: true
+    )
     session.clear
     session[:person_id] = id
     redirect "/directory"
@@ -120,22 +139,31 @@ get "/directory" do
   dataset = PEOPLE.order(Sequel.desc(:id))
   unless @query.empty?
     pattern = "%#{@query.gsub(/[\\%_]/) { |char| "\\#{char}" }}%"
-    dataset = dataset.where(Sequel.ilike(:first_name, pattern) | Sequel.ilike(:last_name, pattern) | Sequel.ilike(:email, pattern))
+    dataset = dataset.where(
+      Sequel.ilike(:first_name, pattern) | Sequel.ilike(:last_name, pattern) |
+      Sequel.ilike(:email, pattern) | Sequel.ilike(:telephone1, pattern) |
+      Sequel.ilike(:sName, pattern) | Sequel.cast(:sNumber, String).ilike(pattern) |
+      Sequel.ilike(:comments, pattern)
+    )
   end
   @people = dataset.all
   @flash = session.delete(:flash)
-  @current_person = PEOPLE.where(id: session[:person_id]).first
+  @current_person = current_person
   erb :index
 end
 
 post "/people" do
   person = person_params
   if (error = valid_person?(person))
-    return go_home(error, type: "error")
+    return go_directory(error, type: "error")
   end
 
   begin
-    PEOPLE.insert(first_name: person[:first_name], last_name: person[:last_name], email: person[:email], password: BCrypt::Password.create(person[:password]))
+    PEOPLE.insert(
+      first_name: person[:first_name], last_name: person[:last_name], email: person[:email],
+      password: BCrypt::Password.create(person[:password]), telephone1: person[:telephone1],
+      sNumber: person[:sNumber], sName: person[:sName], comments: person[:comments], admin: person[:admin]
+    )
     go_directory("Record added.")
   rescue Sequel::UniqueConstraintViolation
     go_directory("That email address is already in the database.", type: "error")
@@ -145,12 +173,21 @@ end
 post "/people/:id/update" do
   id = Integer(params[:id], 10) rescue nil
   person = person_params
-  return go_directory("Record not found.", type: "error") unless id && PEOPLE.where(id: id).first
+  existing = id && PEOPLE.where(id: id).first
+  return go_directory("Record not found.", type: "error") unless existing
 
   error = valid_person?(person, require_password: false)
   return go_directory(error, type: "error") if error
 
-  values = { first_name: person[:first_name], last_name: person[:last_name], email: person[:email] }
+  if existing[:admin] && !person[:admin] && PEOPLE.where(admin: true).count <= 1
+    return go_directory("The last admin account cannot be demoted.", type: "error")
+  end
+
+  values = {
+    first_name: person[:first_name], last_name: person[:last_name], email: person[:email],
+    telephone1: person[:telephone1], sNumber: person[:sNumber], sName: person[:sName], comments: person[:comments],
+    admin: person[:admin]
+  }
   values[:password] = BCrypt::Password.create(person[:password]) unless person[:password].empty?
   begin
     PEOPLE.where(id: id).update(values)
@@ -165,6 +202,8 @@ post "/people/:id/delete" do
   return go_directory("Record not found.", type: "error") unless id && PEOPLE.where(id: id).first
 
   halt 400, "You cannot delete the last directory record." if PEOPLE.count <= 1
+  target = PEOPLE.where(id: id).first
+  halt 400, "The last admin account cannot be deleted." if target[:admin] && PEOPLE.where(admin: true).count <= 1
   PEOPLE.where(id: id).delete
   go_directory("Record deleted.")
 end

@@ -19,15 +19,25 @@
 
   <div class="workspace">
     <aside class="panel add-panel">
-      <div class="panel-heading"><div class="heading-icon">＋</div><div><h2>Add a person</h2><p>Create a new directory record</p></div></div>
-      <form action="/people" method="post" class="person-form">
-        <label>First name<input name="first_name" autocomplete="given-name" placeholder="e.g. Jamie" required maxlength="100"></label>
-        <label>Last name<input name="last_name" autocomplete="family-name" placeholder="e.g. Chen" required maxlength="100"></label>
-        <label>Email address<input type="email" name="email" autocomplete="email" placeholder="jamie@example.com" required maxlength="254"></label>
-        <label>Password<input type="password" name="password" autocomplete="new-password" placeholder="At least 8 characters" minlength="8" required></label>
-        <button class="button button-primary" type="submit"><span>＋</span> Add person</button>
-      </form>
-      <div class="secure-note"><span class="lock-icon">▣</span><span>Passwords are encrypted before they’re stored.</span></div>
+      <% if @current_person[:admin] %>
+        <div class="panel-heading"><div class="heading-icon">＋</div><div><h2>Add a person</h2><p>Create a new directory record</p></div></div>
+        <form action="/people" method="post" class="person-form">
+          <label>First name<input name="first_name" autocomplete="given-name" placeholder="e.g. Jamie" required maxlength="100"></label>
+          <label>Last name<input name="last_name" autocomplete="family-name" placeholder="e.g. Chen" required maxlength="100"></label>
+          <label>Email address<input type="email" name="email" autocomplete="email" placeholder="jamie@example.com" required maxlength="254"></label>
+          <label>Password<input type="password" name="password" autocomplete="new-password" placeholder="At least 8 characters" minlength="8" required></label>
+          <label>Telephone<input name="telephone1" type="tel" maxlength="20" placeholder="Optional"></label>
+          <label>sNumber<input name="sNumber" type="number" step="1" placeholder="Optional"></label>
+          <label>sName<input name="sName" maxlength="50" placeholder="Optional"></label>
+          <label>Comments<textarea name="comments" maxlength="500" rows="3" placeholder="Optional"></textarea></label>
+          <label class="admin-check"><input type="checkbox" name="admin" value="1"><span>Grant admin privileges</span></label>
+          <button class="button button-primary" type="submit"><span>＋</span> Add person</button>
+        </form>
+        <div class="secure-note"><span class="lock-icon">▣</span><span>Passwords are encrypted before they’re stored.</span></div>
+      <% else %>
+        <div class="panel-heading"><div class="heading-icon">⌕</div><div><h2>Directory access</h2><p>You’re signed in as a standard user</p></div></div>
+        <div class="readonly-note"><span class="lock-icon">▣</span><p>You can search and view the directory. Contact an administrator to add or change records.</p></div>
+      <% end %>
     </aside>
 
     <section class="panel directory-panel">
@@ -42,12 +52,15 @@
       <% if @people.empty? %>
         <div class="empty-state"><div class="empty-art"><span>◎</span><i></i><b></b></div><h3><%= @query.empty? ? "Your directory is ready" : "No matches found" %></h3><p><%= @query.empty? ? "Add your first person using the form and they’ll show up here." : "Try another name or email address." %></p><% unless @query.empty? %><a href="/directory" class="text-link">Clear search</a><% end %></div>
       <% else %>
-        <div class="table-scroll"><table><thead><tr><th>PERSON</th><th>EMAIL ADDRESS</th><th class="action-heading">ACTIONS</th></tr></thead><tbody>
+        <div class="table-scroll"><table><thead><tr><th>PERSON</th><th>CONTACT</th><th>DETAILS</th><% if @current_person[:admin] %><th class="action-heading">ACTIONS</th><% end %></tr></thead><tbody>
           <% @people.each do |person| %>
             <tr>
-              <td><div class="person-cell"><span class="avatar"><%= h(person[:first_name][0].to_s.upcase + person[:last_name][0].to_s.upcase) %></span><div><span class="person-name"><%= h(person[:first_name]) %> <%= h(person[:last_name]) %></span><span class="person-id">ID · <%= person[:id] %></span></div></div></td>
-              <td><a class="email-link" href="mailto:<%= h(person[:email]) %>"><%= h(person[:email]) %></a></td>
-              <td><div class="actions"><button class="icon-button edit-button" type="button" aria-label="Edit <%= h(person[:first_name]) %> <%= h(person[:last_name]) %>" title="Edit" data-id="<%= person[:id] %>" data-first="<%= h(person[:first_name]) %>" data-last="<%= h(person[:last_name]) %>" data-email="<%= h(person[:email]) %>">✎</button><form action="/people/<%= person[:id] %>/delete" method="post" onsubmit="return confirm('Delete this record? This cannot be undone.')"><button class="icon-button delete-button" type="submit" aria-label="Delete <%= h(person[:first_name]) %> <%= h(person[:last_name]) %>" title="Delete">⌫</button></form></div></td>
+              <td><div class="person-cell"><span class="avatar"><%= h(person[:first_name][0].to_s.upcase + person[:last_name][0].to_s.upcase) %></span><div><span class="person-name"><%= h(person[:first_name]) %> <%= h(person[:last_name]) %></span><span class="person-id">ID · <%= person[:id] %><% if person[:admin] %> · ADMIN<% end %></span></div></div></td>
+              <td><a class="email-link" href="mailto:<%= h(person[:email]) %>"><%= h(person[:email]) %></a><% unless person[:telephone1].to_s.empty? %><span class="secondary-value"><%= h(person[:telephone1]) %></span><% end %></td>
+              <td><span class="detail-primary"><% if person[:sNumber] %>#<%= h(person[:sNumber]) %><% end %><%= h(person[:sName]) %></span><% unless person[:comments].to_s.empty? %><span class="secondary-value detail-comment" title="<%= h(person[:comments]) %>"><%= h(person[:comments]) %></span><% end %></td>
+              <% if @current_person[:admin] %>
+                <td><div class="actions"><button class="icon-button edit-button" type="button" aria-label="Edit <%= h(person[:first_name]) %> <%= h(person[:last_name]) %>" title="Edit" data-id="<%= person[:id] %>" data-first="<%= h(person[:first_name]) %>" data-last="<%= h(person[:last_name]) %>" data-email="<%= h(person[:email]) %>" data-telephone="<%= h(person[:telephone1]) %>" data-snumber="<%= h(person[:sNumber]) %>" data-sname="<%= h(person[:sName]) %>" data-comments="<%= h(person[:comments]) %>" data-admin="<%= person[:admin] ? "1" : "0" %>">✎</button><form action="/people/<%= person[:id] %>/delete" method="post" onsubmit="return confirm('Delete this record? This cannot be undone.')"><button class="icon-button delete-button" type="submit" aria-label="Delete <%= h(person[:first_name]) %> <%= h(person[:last_name]) %>" title="Delete">⌫</button></form></div></td>
+              <% end %>
             </tr>
           <% end %>
         </tbody></table></div>
@@ -58,14 +71,21 @@
   <footer><span>TOPKan <span class="footer-divider">/</span> People directory</span><span>Made for keeping things connected <span class="footer-heart">♥</span></span></footer>
 </main>
 
-<dialog id="edit-dialog" class="edit-dialog">
-  <form id="edit-form" method="post">
-    <div class="dialog-heading"><div><div class="eyebrow">UPDATE DIRECTORY</div><h2>Edit person</h2></div><button class="close-dialog" type="button" aria-label="Close">×</button></div>
-    <label>First name<input name="first_name" required maxlength="100"></label>
-    <label>Last name<input name="last_name" required maxlength="100"></label>
-    <label>Email address<input type="email" name="email" required maxlength="254"></label>
-    <label>Password <span class="optional">Optional</span><input type="password" name="password" autocomplete="new-password" placeholder="Leave blank to keep current password"></label>
-    <div class="dialog-actions"><button class="button button-secondary" type="button" id="cancel-edit">Cancel</button><button class="button button-primary" type="submit">Save changes</button></div>
-  </form>
-</dialog>
+<% if @current_person[:admin] %>
+  <dialog id="edit-dialog" class="edit-dialog">
+    <form id="edit-form" method="post">
+      <div class="dialog-heading"><div><div class="eyebrow">UPDATE DIRECTORY</div><h2>Edit person</h2></div><button class="close-dialog" type="button" aria-label="Close">×</button></div>
+      <label>First name<input name="first_name" required maxlength="100"></label>
+      <label>Last name<input name="last_name" required maxlength="100"></label>
+      <label>Email address<input type="email" name="email" required maxlength="254"></label>
+      <label>Password <span class="optional">Optional</span><input type="password" name="password" autocomplete="new-password" placeholder="Leave blank to keep current password"></label>
+      <label>Telephone<input type="tel" name="telephone1" maxlength="20"></label>
+      <label>sNumber<input type="number" name="sNumber" step="1"></label>
+      <label>sName<input name="sName" maxlength="50"></label>
+      <label>Comments<textarea name="comments" maxlength="500" rows="3"></textarea></label>
+      <label class="admin-check"><input type="checkbox" name="admin" value="1"><span>Admin privileges</span></label>
+      <div class="dialog-actions"><button class="button button-secondary" type="button" id="cancel-edit">Cancel</button><button class="button button-primary" type="submit">Save changes</button></div>
+    </form>
+  </dialog>
+<% end %>
 <script src="/app.js" defer></script>

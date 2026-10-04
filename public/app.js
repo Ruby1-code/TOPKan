@@ -8,6 +8,11 @@ document.querySelectorAll(".edit-button").forEach((button) => {
     form.elements.last_name.value = button.dataset.last;
     form.elements.email.value = button.dataset.email;
     form.elements.password.value = "";
+    form.elements.telephone1.value = button.dataset.telephone;
+    form.elements.namedItem("sNumber").value = button.dataset.snumber;
+    form.elements.namedItem("sName").value = button.dataset.sname;
+    form.elements.comments.value = button.dataset.comments;
+    form.elements.admin.checked = button.dataset.admin === "1";
     dialog.showModal();
   });
 });
