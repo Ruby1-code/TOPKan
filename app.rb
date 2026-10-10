@@ -175,7 +175,7 @@ post "/passkeys/login" do
   return json_response({ error: "Passkey could not be verified." }, 401) unless stored
 
   credential.verify(challenge, public_key: stored[:public_key], sign_count: stored[:sign_count], user_verification: true)
-  PASSKEYS.where(id: stored[:id]).update(sign_count: credential.sign_count)
+  PASSKEYS.where(id: stored[:id]).update(sign_count: credential.sign_count.to_i)
   person = PEOPLE.where(id: stored[:person_id]).first
   return json_response({ error: "Account not found." }, 401) unless person
 
