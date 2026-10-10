@@ -18,3 +18,5 @@ services:
           property: connectionString
       - key: SESSION_SECRET
         generateValue: true
+      - key: WEBAUTHN_ORIGIN
+        value: https://topkan.onrender.com

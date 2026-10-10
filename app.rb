@@ -3,6 +3,9 @@ require "sequel"
 require "bcrypt"
 require "uri"
 require "digest"
+require "json"
+require "base64"
+require "webauthn"
 
 set :bind, "0.0.0.0"
 set :port, ENV.fetch("PORT", 4567)
@@ -22,6 +25,15 @@ Sequel.extension :migration
 Sequel::Migrator.run(DB, File.join(__dir__, "db", "migrations"))
 
 PEOPLE = DB[:people]
+PASSKEYS = DB[:passkeys]
+
+WEBAUTHN_ORIGIN = ENV.fetch("WEBAUTHN_ORIGIN", ENV.fetch("RENDER_EXTERNAL_URL", "http://localhost:4567")).sub(%r{/\z}, "")
+WEBAUTHN_URI = URI.parse(WEBAUTHN_ORIGIN)
+WebAuthn.configure do |config|
+  config.allowed_origins = [WEBAUTHN_ORIGIN]
+  config.rp_id = WEBAUTHN_URI.host
+  config.rp_name = "TOPKan"
+end
 
 helpers do
   def h(value)
@@ -68,6 +80,35 @@ helpers do
     session[:flash] = { message: message, type: type } if message
     redirect "/directory"
   end
+
+  def json_body
+    JSON.parse(request.body.read)
+  rescue JSON::ParserError, TypeError
+    {}
+  end
+
+  def json_response(payload, status_code = 200)
+    status status_code
+    content_type :json
+    JSON.generate(payload)
+  end
+
+  def require_same_origin!
+    halt 403, "Request origin rejected." unless request.env["HTTP_ORIGIN"] == WEBAUTHN_ORIGIN
+  end
+
+  def passkey_user_id(person_id)
+    Base64.urlsafe_encode64("topkan-person-#{person_id}", padding: false)
+  end
+
+  def serialize_options(options)
+    JSON.generate(options.as_json)
+  end
+
+  def authenticate_passkey!(person)
+    session.clear
+    session[:person_id] = person[:id]
+  end
 end
 
 enable :sessions
@@ -107,6 +148,43 @@ post "/login" do
   end
 end
 
+post "/passkeys/login/options" do
+  require_same_origin!
+  email = json_body["email"].to_s.strip.downcase
+  person = PEOPLE.where(email: email).first
+  credentials = person ? PASSKEYS.where(person_id: person[:id]).all : []
+  return json_response({ error: "No passkey is available for that email. Use your password or check the email." }, 422) if credentials.empty?
+
+  options = WebAuthn::Credential.options_for_get(
+    allow: credentials.map { |credential| credential[:credential_id] },
+    user_verification: "required"
+  )
+  session[:passkey_login] = { "challenge" => options.challenge, "person_id" => person[:id], "issued_at" => Time.now.to_i }
+  content_type :json
+  serialize_options(options)
+end
+
+post "/passkeys/login" do
+  require_same_origin!
+  ceremony = session.delete(:passkey_login)
+  challenge = ceremony && ceremony["issued_at"].to_i >= Time.now.to_i - 300 ? ceremony["challenge"] : nil
+  return json_response({ error: "Passkey sign-in expired. Try again." }, 401) unless challenge
+
+  credential = WebAuthn::Credential.from_get(json_body)
+  stored = PASSKEYS.where(credential_id: credential.id, person_id: ceremony["person_id"]).first
+  return json_response({ error: "Passkey could not be verified." }, 401) unless stored
+
+  credential.verify(challenge, public_key: stored[:public_key], sign_count: stored[:sign_count], user_verification: true)
+  PASSKEYS.where(id: stored[:id]).update(sign_count: credential.sign_count)
+  person = PEOPLE.where(id: stored[:person_id]).first
+  return json_response({ error: "Account not found." }, 401) unless person
+
+  authenticate_passkey!(person)
+  json_response({ redirect: "/directory" })
+rescue WebAuthn::Error, ArgumentError, KeyError, TypeError
+  json_response({ error: "Passkey sign-in failed. Try again or use your password." }, 401)
+end
+
 post "/setup" do
   halt 404, "Not found" unless PEOPLE.count.zero?
 
@@ -138,6 +216,65 @@ get "/account/password" do
   @current_person = current_person
   @flash = session.delete(:flash)
   erb :change_password
+end
+
+get "/account/passkeys" do
+  @current_person = current_person
+  @passkeys = PASSKEYS.where(person_id: @current_person[:id]).order(:id).all
+  @flash = session.delete(:flash)
+  erb :passkeys
+end
+
+post "/account/passkeys/options" do
+  require_same_origin!
+  person = current_person
+  body = json_body
+  unless BCrypt::Password.new(person[:password]) == body["current_password"].to_s
+    return json_response({ error: "Current password is incorrect." }, 422)
+  end
+
+  credentials = PASSKEYS.where(person_id: person[:id]).all
+  options = WebAuthn::Credential.options_for_create(
+    user: { id: passkey_user_id(person[:id]), name: person[:email], display_name: "#{person[:first_name]} #{person[:last_name]}" },
+    exclude: credentials.map { |credential| credential[:credential_id] },
+    authenticator_selection: { resident_key: "required", user_verification: "required" }
+  )
+  session[:passkey_creation] = { "challenge" => options.challenge, "person_id" => person[:id], "issued_at" => Time.now.to_i }
+  content_type :json
+  serialize_options(options)
+end
+
+post "/account/passkeys" do
+  require_same_origin!
+  ceremony = session.delete(:passkey_creation)
+  challenge = ceremony && ceremony["issued_at"].to_i >= Time.now.to_i - 300 ? ceremony["challenge"] : nil
+  return json_response({ error: "Passkey setup expired. Try again." }, 401) unless challenge && ceremony["person_id"] == current_person[:id]
+
+  credential = WebAuthn::Credential.from_create(json_body)
+  credential.verify(challenge, user_verification: true)
+  count = PASSKEYS.where(person_id: current_person[:id]).count + 1
+  PASSKEYS.insert(
+    person_id: current_person[:id], credential_id: credential.id, public_key: credential.public_key,
+    sign_count: credential.sign_count.to_i, label: "Passkey #{count}"
+  )
+  json_response({ message: "Passkey added." })
+rescue WebAuthn::Error, ArgumentError, KeyError, TypeError, Sequel::UniqueConstraintViolation
+  json_response({ error: "Could not add that passkey. Please try again." }, 422)
+end
+
+post "/account/passkeys/:id/delete" do
+  require_same_origin!
+  unless BCrypt::Password.new(current_person[:password]) == params[:current_password].to_s
+    session[:flash] = { message: "Current password is incorrect.", type: "error" }
+    return redirect "/account/passkeys"
+  end
+
+  PASSKEYS.where(id: Integer(params[:id], 10), person_id: current_person[:id]).delete
+  session[:flash] = { message: "Passkey removed.", type: "success" }
+  redirect "/account/passkeys"
+rescue ArgumentError
+  session[:flash] = { message: "Passkey not found.", type: "error" }
+  redirect "/account/passkeys"
 end
 
 post "/account/password" do

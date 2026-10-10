@@ -26,12 +26,15 @@
       <div class="login-secure"><span class="lock-icon">▣</span> Your password is stored as a secure hash.</div>
     <% else %>
       <form action="/login" method="post" class="login-form">
-        <label>Email address<input type="email" name="email" autocomplete="username" placeholder="you@example.com" required maxlength="254" autofocus></label>
+        <label>Email address<input id="login-email" type="email" name="email" autocomplete="username" placeholder="you@example.com" required maxlength="254" autofocus></label>
         <label>Password<input type="password" name="password" autocomplete="current-password" placeholder="Enter your password" required></label>
         <button class="button button-primary login-submit" type="submit">Sign in <span>→</span></button>
       </form>
+      <button class="button button-secondary passkey-login" id="passkey-login" type="button">Sign in with a passkey</button>
+      <p class="passkey-status" id="passkey-status" role="status" aria-live="polite"></p>
       <div class="login-secure"><span class="lock-icon">▣</span> Your directory is protected by your account.</div>
     <% end %>
   </section>
   <footer class="login-footer"><span>TOPKan <span class="footer-divider">/</span> People directory</span><span>Made for keeping things connected <span class="footer-heart">♥</span></span></footer>
 </main>
+<script src="/passkeys.js" defer></script>

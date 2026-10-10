@@ -1,6 +1,6 @@
 # TOPKan
 
-A small Sinatra people directory with sign-in, admin-controlled add/edit/delete, search, and self-service password changes. Passwords are stored as bcrypt hashes in the `password` column; the plaintext password is never saved. On a new, empty database, the home page offers a one-time first account setup, and that first account is an administrator.
+A small Sinatra people directory with sign-in, admin-controlled add/edit/delete, search, self-service password changes, and passkeys. Passwords are stored as bcrypt hashes in the `password` column; the plaintext password is never saved. Users can register passkeys from Account Security and then sign in with their email and device passkey. On a new, empty database, the home page offers a one-time first account setup, and that first account is an administrator.
 
 ## Run locally
 
@@ -12,6 +12,8 @@ bundle exec ruby app.rb
 ```
 
 Open <http://localhost:4567>. Create the first account when prompted. Local records are stored in `db/topkan.sqlite3`.
+
+For passkeys, use `http://localhost:4567` (or configure the exact origin with `WEBAUTHN_ORIGIN`). WebAuthn requires a secure browser context; localhost is permitted for local development. Render's Blueprint sets the production origin to `https://topkan.onrender.com`.
 
 ## Deploy to Render
 
@@ -34,4 +36,4 @@ Push this project to a Git repository, connect that repository to Render, and cr
 
 ## Database schema changes
 
-Schema changes are tracked with Sequel migrations in `db/migrations/`. The app applies unapplied migrations at startup on both local SQLite and Render PostgreSQL. Do not edit a migration that has already been deployed; add the next numbered file instead. For example, `003_add_phone_number.rb` can use `alter_table(:people) { add_column :phone_number, String }`. New fields should usually allow `NULL` or have a safe default so existing records remain valid. Back up production data before migrations that remove or rewrite columns.
+Schema changes are tracked with Sequel migrations in `db/migrations/`. The app applies unapplied migrations at startup on both local SQLite and Render PostgreSQL. Do not edit a migration that has already been deployed; add the next numbered file instead. For example, `004_add_phone_number.rb` can use `alter_table(:people) { add_column :phone_number, String }`. New fields should usually allow `NULL` or have a safe default so existing records remain valid. Back up production data before migrations that remove or rewrite columns.

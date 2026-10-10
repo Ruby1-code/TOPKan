@@ -1,0 +1,40 @@
+<header class="topbar">
+  <a class="brand" href="/directory" aria-label="TOPKan directory"><span class="brand-mark">T</span><span>TOPKan</span></a>
+  <div class="user-menu"><a class="account-link" href="/account/password">Change password</a><a class="account-link" href="/directory">← Back to directory</a><form action="/logout" method="post"><button class="logout-button" type="submit">Sign out <span>↗</span></button></form></div>
+</header>
+
+<main class="login-shell">
+  <section class="login-card password-card passkeys-card">
+    <div class="login-emblem"><span class="brand-mark">T</span></div>
+    <div class="eyebrow login-eyebrow"><span class="eyebrow-dot"></span> ACCOUNT SECURITY</div>
+    <h1>Your passkeys</h1>
+    <p class="login-subtitle">Use a device screen lock, fingerprint, or security key to sign in without your password.</p>
+
+    <% if @flash %><div class="flash <%= h(@flash[:type]) %>" role="status"><span class="flash-icon"><%= @flash[:type] == "error" ? "!" : "✓" %></span><%= h(@flash[:message]) %></div><% end %>
+
+    <div class="passkey-list">
+      <% if @passkeys.empty? %>
+        <p class="passkey-empty">No passkeys registered yet.</p>
+      <% else %>
+        <% @passkeys.each do |passkey| %>
+          <div class="passkey-row">
+            <div><strong><%= h(passkey[:label]) %></strong><small>Ready for passwordless sign-in</small></div>
+            <form action="/account/passkeys/<%= passkey[:id] %>/delete" method="post" class="passkey-remove-form">
+              <label>Confirm password<input type="password" name="current_password" autocomplete="current-password" required aria-label="Current password to remove <%= h(passkey[:label]) %>"></label>
+              <button class="button button-secondary" type="submit">Remove</button>
+            </form>
+          </div>
+        <% end %>
+      <% end %>
+    </div>
+
+    <form id="add-passkey-form" class="login-form passkey-add-form">
+      <label>Confirm your password<input id="passkey-current-password" type="password" autocomplete="current-password" required></label>
+      <button class="button button-primary login-submit" type="submit">Add a passkey <span>→</span></button>
+    </form>
+    <p class="passkey-status" id="passkey-status" role="status" aria-live="polite"></p>
+    <div class="login-secure"><span class="lock-icon">▣</span> Your passkey’s private key stays on your device.</div>
+  </section>
+  <footer class="login-footer"><span>TOPKan <span class="footer-divider">/</span> Account security</span><span>Passkey sign-in is available after registration.</span></footer>
+</main>
+<script src="/passkeys.js" defer></script>

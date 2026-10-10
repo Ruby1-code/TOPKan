@@ -1,6 +1,6 @@
 <header class="topbar">
   <a class="brand" href="/directory" aria-label="TOPKan home"><span class="brand-mark">T</span><span>TOPKan</span></a>
-  <div class="user-menu"><span class="signed-in-as"><span class="signed-in-dot"></span><%= h(@current_person[:first_name]) %></span><a class="account-link" href="/account/password">Change password</a><form action="/logout" method="post"><button class="logout-button" type="submit">Sign out <span>↗</span></button></form></div>
+  <div class="user-menu"><span class="signed-in-as"><span class="signed-in-dot"></span><%= h(@current_person[:first_name]) %></span><a class="account-link" href="/account/password">Change password</a><a class="account-link" href="/account/passkeys">Passkeys</a><form action="/logout" method="post"><button class="logout-button" type="submit">Sign out <span>↗</span></button></form></div>
 </header>
 
 <main class="shell">
